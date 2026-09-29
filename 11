@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kartu Tarot Hari Ini</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --color-background-primary: #ffffff;
+    --color-background-secondary: #f5f4f0;
+    --color-background-tertiary: #eeecea;
+    --color-text-primary: #1a1a18;
+    --color-text-secondary: #6b6966;
+    --color-border-tertiary: rgba(0,0,0,0.12);
+    --color-border-secondary: rgba(0,0,0,0.22);
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 16px;
+    --font-sans: system-ui, -apple-system, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-background-primary: #1e1e1c;
+      --color-background-secondary: #2a2a28;
+      --color-background-tertiary: #141412;
+      --color-text-primary: #f0ede8;
+      --color-text-secondary: #999690;
+      --color-border-tertiary: rgba(255,255,255,0.1);
+      --color-border-secondary: rgba(255,255,255,0.2);
+    }
+  }
+
+  body {
+    background: var(--color-background-tertiary);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+
+  .tarot-app {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .title {
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    letter-spacing: 0.05em;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-top: -0.75rem;
+  }
+
+  .datetime-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .datetime-time {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .datetime-date {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.02em;
+  }
+
+  .wheel-wrapper {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    flex-shrink: 0;
+  }
+
+  #wheelCanvas { width: 280px; height: 280px; }
+
+  .spin-btn {
+    padding: 0.65rem 2.5rem;
+    font-size: 15px;
+    font-weight: 500;
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: var(--border-radius-lg);
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  .spin-btn:hover { background: var(--color-background-secondary); }
+  .spin-btn:active { transform: scale(0.97); }
+  .spin-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .card-reveal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+
+  .card-reveal.visible { display: flex; animation: overlayIn 0.3s ease; }
+
+  @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .card-modal {
+    background: var(--color-background-primary);
+    border-radius: var(--border-radius-xl);
+    border: 0.5px solid var(--color-border-tertiary);
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 380px;
+    animation: modalIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.85) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 1rem;
+  }
+
+  .card-icon {
+    width: 52px;
+    height: 72px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+    border: 0.5px solid var(--color-border-tertiary);
+  }
+
+  .card-meta { flex: 1; }
+
+  .card-name {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 3px;
+  }
+
+  .card-type {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 10px;
+    border-radius: var(--border-radius-md);
+    display: inline-block;
+    margin-bottom: 6px;
+  }
+
+  .type-major     { background: #EEEDFE; color: #3C3489; }
+  .type-wands     { background: #FAEEDA; color: #633806; }
+  .type-cups      { background: #E6F1FB; color: #0C447C; }
+  .type-swords    { background: #F1EFE8; color: #444441; }
+  .type-pentacles { background: #EAF3DE; color: #27500A; }
+
+  .card-number {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+  }
+
+  .divider {
+    height: 0.5px;
+    background: var(--color-border-tertiary);
+    margin: 0.75rem 0;
+  }
+
+  .card-meaning-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-secondary);
+    margin-bottom: 4px;
+  }
+
+  .card-meaning {
+    font-size: 14px;
+    color: var(--color-text-primary);
+    line-height: 1.6;
+  }
+
+  .card-keywords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .keyword {
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--color-background-secondary);
+    color: var(--color-text-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+  }
+
+  .pointer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 18px;
+    height: 18px;
+    background: var(--color-text-primary);
+    border-radius: 50%;
+    z-index: 10;
+    border: 3px solid var(--color-background-primary);
+  }
+
+  .needle {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 26px solid var(--color-text-primary);
+    z-index: 10;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+  }
+
+  .intro-overlay {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    animation: overlayIn 0.3s ease;
+  }
+
+  .intro-overlay.hidden { display: none; }
+
+  .intro-modal {
+    background: var(--color-background-primary);
+    border-radius: var(--border-radius-xl);
+    border: 0.5px solid var(--color-border-tertiary);
+    padding: 2rem 1.75rem;
+    width: 100%;
+    max-width: 360px;
+    animation: modalIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .intro-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 4px;
+  }
+
+  .intro-subtitle {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+  }
+
+  .intro-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+  }
+
+  .intro-input {
+    width: 100%;
+    padding: 0.6rem 0.85rem;
+    font-size: 15px;
+    font-family: var(--font-sans);
+    background: var(--color-background-secondary);
+    color: var(--color-text-primary);
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    outline: none;
+    margin-bottom: 1.25rem;
+    transition: border-color 0.15s;
+  }
+
+  .intro-input:focus { border-color: var(--color-text-secondary); }
+
+  .mood-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 1.5rem;
+  }
+
+  .mood-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 4px 8px;
+    border-radius: var(--border-radius-md);
+    border: 0.5px solid var(--color-border-tertiary);
+    background: var(--color-background-secondary);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  }
+
+  .mood-btn:hover { background: var(--color-background-tertiary); }
+  .mood-btn:active { transform: scale(0.95); }
+
+  .mood-btn.selected {
+    border-color: var(--color-border-primary);
+    background: var(--color-background-primary);
+    border-width: 1.5px;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.08);
+  }
+
+  .mood-emoji { font-size: 22px; line-height: 1; }
+  .mood-label { font-size: 10px; color: var(--color-text-secondary); text-align: center; }
+
+  .intro-start-btn {
+    width: 100%;
+    padding: 0.7rem;
+    font-size: 15px;
+    font-weight: 500;
+    background: var(--color-text-primary);
+    color: var(--color-background-primary);
+    border: none;
+    border-radius: var(--border-radius-lg);
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .intro-start-btn:hover { opacity: 0.85; }
+  .intro-start-btn:active { transform: scale(0.98); }
+  .intro-start-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div class="intro-overlay" id="introOverlay">
+  <div class="intro-modal">
+    <div class="intro-title">Hai, Beautiful Soul ✨</div>
+    <p class="intro-subtitle">Bolehkah aku tau namamu dan apa yang sedang kamu rasakan?</p>
+
+    <div class="intro-label">Nama kamu</div>
+    <input class="intro-input" id="nameInput" type="text" placeholder="Tulis namamu di sini..." maxlength="30" oninput="checkIntroReady()" />
+
+    <div class="intro-label" style="margin-bottom:8px;">Mood hari ini</div>
+    <div class="mood-grid" id="moodGrid">
+      <button class="mood-btn" onclick="selectMood(this,'😊','Bahagia')"><span class="mood-emoji">😊</span><span class="mood-label">Bahagia</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'😔','Sedih')"><span class="mood-emoji">😔</span><span class="mood-label">Sedih</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'😤','Kesal')"><span class="mood-emoji">😤</span><span class="mood-label">Kesal</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'😰','Cemas')"><span class="mood-emoji">😰</span><span class="mood-label">Cemas</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'🥰','Jatuh Cinta')"><span class="mood-emoji">🥰</span><span class="mood-label">Jatuh Cinta</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'😴','Lelah')"><span class="mood-emoji">😴</span><span class="mood-label">Lelah</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'🤩','Semangat')"><span class="mood-emoji">🤩</span><span class="mood-label">Semangat</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'🫠','Bingung')"><span class="mood-emoji">🫠</span><span class="mood-label">Bingung</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'😌','Tenang')"><span class="mood-emoji">😌</span><span class="mood-label">Tenang</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'🥺','Rindu')"><span class="mood-emoji">🥺</span><span class="mood-label">Rindu</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'😎','Percaya Diri')"><span class="mood-emoji">😎</span><span class="mood-label">PD</span></button>
+      <button class="mood-btn" onclick="selectMood(this,'🤯','Overwhelmed')"><span class="mood-emoji">🤯</span><span class="mood-label">Overwhelmed</span></button>
+    </div>
+
+    <button class="intro-start-btn" id="startBtn" disabled onclick="startApp()">Mulai Perjalanan →</button>
+  </div>
+</div>
+
+<div class="tarot-app">
+  <div class="title" id="mainTitle">Kartu Tarot Hari Ini</div>
+  <div class="datetime-box">
+    <div class="datetime-date" id="dateDisplay"></div>
+    <div class="datetime-time" id="clock"></div>
+  </div>
+  <p class="subtitle">Putar roda untuk menarik kartumu</p>
+
+  <div class="wheel-wrapper">
+    <canvas id="wheelCanvas" width="560" height="560"></canvas>
+    <div class="pointer"></div>
+  </div>
+
+  <button class="spin-btn" id="spinBtn" onclick="spinWheel()">Pilih Kartumu</button>
+</div>
+
+<div style="position: fixed; bottom: 12px; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--color-text-secondary); opacity: 1; pointer-events: none; z-index: 999;">
+  ✋🧙🏻@nannov11 · 2026
+</div>
+
+<div class="card-reveal" id="cardReveal">
+  <div class="card-modal">
+    <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center;">
+      <span id="modalName"></span>
+      <span id="modalMood"></span>
+    </div>
+    <div class="card-header">
+      <div class="card-icon" id="cardIcon"></div>
+      <div class="card-meta">
+        <div class="card-name" id="cardName"></div>
+        <span class="card-type" id="cardType"></span>
+        <div class="card-number" id="cardNumber"></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="card-meaning-label">Makna</div>
+    <div class="card-meaning" id="cardMeaning"></div>
+    <div class="card-keywords" id="cardKeywords"></div>
+    <div style="margin-top: 1rem; padding: 0.65rem 0.85rem; background: var(--color-background-secondary); border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary);">
+      <p style="font-size: 11.5px; color: var(--color-text-secondary); line-height: 1.6; font-style: italic;">*Kamu tetap butuh <em style="font-style:normal; color: var(--color-text-primary); font-weight:500;">'human tarot reader'</em> untuk interpretasi lengkap sesuai dengan konteks kejadian yang kamu alami.</p>
+    </div>
+    <div style="margin-top: 1rem;">
+      <button class="spin-btn" style="width:100%; justify-content:center;" onclick="closeAndSpin()">Pilih Kartu Lagi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let userName = '';
+let userMood = '';
+
+function selectMood(btn, emoji, label) {
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  userMood = emoji + ' ' + label;
+  checkIntroReady();
+}
+
+function checkIntroReady() {
+  const name = document.getElementById('nameInput').value.trim();
+  document.getElementById('startBtn').disabled = !(name && userMood);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const introModal = document.getElementById('introOverlay');
+  let soundPlayed = false;
+  function triggerSound() {
+    if (!soundPlayed) { soundPlayed = true; playCauldronSound(); }
+    introModal.removeEventListener('click', triggerSound);
+    introModal.removeEventListener('keydown', triggerSound);
+  }
+  introModal.addEventListener('click', triggerSound);
+  introModal.addEventListener('keydown', triggerSound);
+});
+
+function playCauldronSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function bubble(startTime, freq, dur) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const bend = ctx.createOscillator();
+      const bendGain = ctx.createGain();
+      bend.connect(bendGain);
+      bendGain.connect(osc.frequency);
+      bendGain.gain.setValueAtTime(freq * 0.3, startTime);
+      bendGain.gain.exponentialRampToValueAtTime(0.01, startTime + dur);
+      bend.frequency.setValueAtTime(3 + Math.random() * 5, startTime);
+      bend.start(startTime); bend.stop(startTime + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.8, startTime + dur * 0.6);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.5, startTime + dur);
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.12, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+      osc.start(startTime); osc.stop(startTime + dur);
+    }
+
+    function drip(startTime) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1800, startTime);
+      osc.frequency.exponentialRampToValueAtTime(300, startTime + 0.18);
+      gain.gain.setValueAtTime(0.09, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.18);
+      osc.start(startTime); osc.stop(startTime + 0.18);
+    }
+
+    function mysticalHum(startTime, duration) {
+      const freqs = [80, 120, 160, 220];
+      freqs.forEach(f => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const lfo = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
+        lfo.connect(lfoGain); lfoGain.connect(gain.gain);
+        lfo.frequency.setValueAtTime(0.4 + Math.random(), startTime);
+        lfoGain.gain.setValueAtTime(0.02, startTime);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, startTime);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.04, startTime + 0.4);
+        gain.gain.setValueAtTime(0.04, startTime + duration - 0.3);
+        gain.gain.linearRampToValueAtTime(0, startTime + duration);
+        lfo.start(startTime); lfo.stop(startTime + duration);
+        osc.start(startTime); osc.stop(startTime + duration);
+      });
+    }
+
+    function sparkle(startTime) {
+      [1200,1800,2400,3200,4000].forEach((f, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, startTime + i * 0.06);
+        gain.gain.setValueAtTime(0.07, startTime + i * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + i * 0.06 + 0.25);
+        osc.start(startTime + i * 0.06);
+        osc.stop(startTime + i * 0.06 + 0.25);
+      });
+    }
+
+    function whoosh(startTime) {
+      const bufSize = ctx.sampleRate * 0.6;
+      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+      const noise = ctx.createBufferSource();
+      noise.buffer = buf;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(200, startTime);
+      filter.frequency.exponentialRampToValueAtTime(1800, startTime + 0.3);
+      filter.frequency.exponentialRampToValueAtTime(400, startTime + 0.6);
+      filter.Q.setValueAtTime(3, startTime);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.6);
+      noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+      noise.start(startTime); noise.stop(startTime + 0.6);
+    }
+
+    mysticalHum(0, 3.5);
+    whoosh(0.1);
+    drip(0.3); drip(0.55); drip(0.75);
+    bubble(0.4, 180, 0.4);
+    bubble(0.65, 220, 0.35);
+    bubble(0.9, 160, 0.45);
+    bubble(1.1, 250, 0.3);
+    drip(1.2); drip(1.45);
+    bubble(1.3, 200, 0.4);
+    bubble(1.55, 140, 0.5);
+    whoosh(1.6);
+    bubble(1.8, 280, 0.3);
+    drip(1.9); drip(2.1);
+    bubble(2.0, 190, 0.4);
+    sparkle(2.3);
+    bubble(2.5, 230, 0.3);
+    drip(2.6);
+    sparkle(2.9);
+  } catch(e) {}
+}
+
+function playStartBubble() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function bubble(t, freq, dur) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 2.2, t + dur * 0.5);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.4, t + dur);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.15, t + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.start(t); osc.stop(t + dur);
+    }
+
+    function glug(t) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(400, t);
+      osc.frequency.exponentialRampToValueAtTime(100, t + 0.22);
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.start(t); osc.stop(t + 0.22);
+    }
+
+    function pourWhoosh(t) {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const flt = ctx.createBiquadFilter(); flt.type = 'bandpass';
+      flt.frequency.setValueAtTime(600, t);
+      flt.frequency.linearRampToValueAtTime(1400, t + 0.25);
+      flt.Q.value = 2;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.12, t + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      src.connect(flt); flt.connect(gain); gain.connect(ctx.destination);
+      src.start(t); src.stop(t + 0.5);
+    }
+
+    pourWhoosh(0);
+    glug(0.1);
+    bubble(0.15, 200, 0.3);
+    bubble(0.28, 280, 0.28);
+    glug(0.35);
+    bubble(0.42, 160, 0.35);
+    bubble(0.55, 240, 0.25);
+    glug(0.6);
+    bubble(0.68, 300, 0.22);
+    [900,1200,1600,2100].forEach((f, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      osc.frequency.value = f;
+      gain.gain.setValueAtTime(0.06, 0.8 + i * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.001, 0.8 + i * 0.07 + 0.2);
+      osc.start(0.8 + i * 0.07); osc.stop(0.8 + i * 0.07 + 0.2);
+    });
+  } catch(e) {}
+}
+
+function playSpinBubble() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function bubble(t, freq, dur) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.9, t + dur * 0.45);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.5, t + dur);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.13, t + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.start(t); osc.stop(t + dur);
+    }
+
+    function swirl(t) {
+      const buf = ctx.createBuffer(1, ctx.sampleRate * 0.4, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const flt = ctx.createBiquadFilter(); flt.type = 'bandpass';
+      flt.frequency.setValueAtTime(300, t);
+      flt.frequency.exponentialRampToValueAtTime(2000, t + 0.35);
+      flt.Q.value = 4;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      src.connect(flt); flt.connect(gain); gain.connect(ctx.destination);
+      src.start(t); src.stop(t + 0.4);
+    }
+
+    swirl(0);
+    bubble(0.05, 220, 0.28);
+    bubble(0.18, 180, 0.32);
+    bubble(0.3, 260, 0.25);
+    bubble(0.42, 140, 0.3);
+    swirl(0.4);
+    bubble(0.55, 300, 0.22);
+    bubble(0.65, 200, 0.28);
+  } catch(e) {}
+}
+
+function startApp() {
+  userName = document.getElementById('nameInput').value.trim();
+  playStartBubble();
+  document.getElementById('mainTitle').textContent = `Kartu Untuk ${userName}`;
+  setTimeout(() => document.getElementById('introOverlay').classList.add('hidden'), 200);
+}
+
+const HARI = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${hh}:${mm}:${ss}`;
+  const hari = HARI[now.getDay()];
+  const tgl = now.getDate();
+  const bln = BULAN[now.getMonth()];
+  const thn = now.getFullYear();
+  document.getElementById('dateDisplay').textContent = `${hari}, ${tgl} ${bln} ${thn}`;
+}
+
+updateClock();
+setInterval(updateClock, 1000);
+
+const CARDS = [
+  { name:"The Fool", arcana:"Arkana Mayor", number:"0", suit:"major", symbol:"🌟", meaning:"Awal baru, kepolosan, spontanitas, dan jiwa yang bebas. Sebuah lompatan keyakinan menuju hal yang belum diketahui.", keywords:["awal baru","kebebasan","kepolosan","petualangan"] },
+  { name:"The Magician", arcana:"Arkana Mayor", number:"I", suit:"major", symbol:"✨", meaning:"Kemauan, hasrat, kreasi, dan manifestasi. Kamu memiliki semua alat yang dibutuhkan.", keywords:["kemauan","keahlian","manifestasi","kekuatan"] },
+  { name:"The High Priestess", arcana:"Arkana Mayor", number:"II", suit:"major", symbol:"🌙", meaning:"Intuisi, pengetahuan suci, feminin ilahi, dan alam bawah sadar.", keywords:["intuisi","misteri","pengetahuan batin","ketenangan"] },
+  { name:"The Empress", arcana:"Arkana Mayor", number:"III", suit:"major", symbol:"🌿", meaning:"Kewanitaan, keindahan, alam, pengasuhan, dan kelimpahan. Energi kreatif berkembang.", keywords:["kesuburan","kelimpahan","alam","pengasuhan"] },
+  { name:"The Emperor", arcana:"Arkana Mayor", number:"IV", suit:"major", symbol:"👑", meaning:"Otoritas, struktur, kendali, dan kebapakan. Stabilitas melalui disiplin.", keywords:["otoritas","struktur","stabilitas","kepemimpinan"] },
+  { name:"The Hierophant", arcana:"Arkana Mayor", number:"V", suit:"major", symbol:"⚜️", meaning:"Kebijaksanaan spiritual, tradisi, konformitas, dan institusi. Carilah seorang mentor.", keywords:["tradisi","kepercayaan","kebijaksanaan","bimbingan"] },
+  { name:"The Lovers", arcana:"Arkana Mayor", number:"VI", suit:"major", symbol:"💞", meaning:"Cinta, harmoni, hubungan, dan keselarasan nilai. Sebuah pilihan penting ada di depan.", keywords:["cinta","persatuan","pilihan","nilai"] },
+  { name:"The Chariot", arcana:"Arkana Mayor", number:"VII", suit:"major", symbol:"⚡", meaning:"Kendali, kemauan, kesuksesan, dan tindakan. Kemenangan melalui tekad.", keywords:["kendali","kemenangan","kemauan","dorongan"] },
+  { name:"Strength", arcana:"Arkana Mayor", number:"VIII", suit:"major", symbol:"🦁", meaning:"Kekuatan, keberanian, persuasi, dan kekuatan batin. Kasih sayang mengalahkan kekerasan.", keywords:["keberanian","keberanian","kasih sayang","kesabaran"] },
+  { name:"The Hermit", arcana:"Arkana Mayor", number:"IX", suit:"major", symbol:"🕯️", meaning:"Pencarian jiwa, introspeksi, kesendirian, bimbingan batin. Carilah kebenaranmu dari dalam.", keywords:["introspeksi","kesendirian","bimbingan","kebijaksanaan"] },
+  { name:"Wheel of Fortune", arcana:"Arkana Mayor", number:"X", suit:"major", symbol:"☸️", meaning:"Keberuntungan, karma, siklus kehidupan, takdir, dan titik balik.", keywords:["keberuntungan","siklus","takdir","perubahan"] },
+  { name:"Justice", arcana:"Arkana Mayor", number:"XI", suit:"major", symbol:"⚖️", meaning:"Keadilan, kejujuran, sebab akibat, hukum. Hadapi konsekuensi dengan kejernihan.", keywords:["keadilan","kebenaran","hukum","keseimbangan"] },
+  { name:"The Hanged Man", arcana:"Arkana Mayor", number:"XII", suit:"major", symbol:"🌀", meaning:"Jeda, menyerah, melepaskan, dan perspektif baru. Pengorbanan membawa wawasan.", keywords:["jeda","penyerahan","perspektif","pelepasan"] },
+  { name:"Death", arcana:"Arkana Mayor", number:"XIII", suit:"major", symbol:"🦋", meaning:"Akhir, perubahan, transformasi, dan transisi. Sesuatu harus berakhir agar sesuatu yang baru dimulai.", keywords:["akhir","perubahan","transformasi","transisi"] },
+  { name:"Temperance", arcana:"Arkana Mayor", number:"XIV", suit:"major", symbol:"🌊", meaning:"Keseimbangan, moderasi, kesabaran, dan tujuan. Temukan jalan tengah.", keywords:["keseimbangan","moderasi","kesabaran","harmoni"] },
+  { name:"The Devil", arcana:"Arkana Mayor", number:"XV", suit:"major", symbol:"🔗", meaning:"Bayangan diri, keterikatan, kecanduan, pembatasan. Hadapi apa yang membelenggumu.", keywords:["keterikatan","belenggu","materialisme","bayangan"] },
+  { name:"The Tower", arcana:"Arkana Mayor", number:"XVI", suit:"major", symbol:"⚡", meaning:"Perubahan mendadak, gejolak, kekacauan, wahyu, dan kebangkitan. Struktur harus runtuh.", keywords:["gejolak","kekacauan","wahyu","perubahan mendadak"] },
+  { name:"The Star", arcana:"Arkana Mayor", number:"XVII", suit:"major", symbol:"⭐", meaning:"Harapan, iman, tujuan, pembaruan, dan spiritualitas. Cahaya penuntun dalam kegelapan.", keywords:["harapan","pembaruan","iman","inspirasi"] },
+  { name:"The Moon", arcana:"Arkana Mayor", number:"XVIII", suit:"major", symbol:"🌕", meaning:"Ilusi, ketakutan, alam bawah sadar, dan yang tersembunyi. Percayai intuisimu dalam ketidakpastian.", keywords:["ilusi","ketakutan","alam bawah sadar","mimpi"] },
+  { name:"The Sun", arcana:"Arkana Mayor", number:"XIX", suit:"major", symbol:"☀️", meaning:"Positif, kesenangan, kehangatan, kesuksesan, dan vitalitas. Kegembiraan dan keberuntungan yang bersinar.", keywords:["kegembiraan","kesuksesan","vitalitas","optimisme"] },
+  { name:"Judgement", arcana:"Arkana Mayor", number:"XX", suit:"major", symbol:"🎺", meaning:"Penghakiman, kelahiran kembali, panggilan batin, absolusi. Momen kebangkitan yang mendalam.", keywords:["kelahiran kembali","kebangkitan","refleksi","absolusi"] },
+  { name:"The World", arcana:"Arkana Mayor", number:"XXI", suit:"major", symbol:"🌍", meaning:"Penyelesaian, integrasi, pencapaian, dan keutuhan. Siklus telah selesai.", keywords:["penyelesaian","keutuhan","harmoni","pencapaian"] },
+  { name:"Ace of Wands", arcana:"Arkana Minor", number:"Ace", suit:"wands", symbol:"🔥", meaning:"Inspirasi, peluang baru, pertumbuhan, potensi. Energi kreatif menyala.", keywords:["inspirasi","kreativitas","potensi","energi"] },
+  { name:"Two of Wands", arcana:"Arkana Minor", number:"2", suit:"wands", symbol:"🔥", meaning:"Perencanaan masa depan, kemajuan, keputusan, penemuan. Pandanglah melampaui cakrawala.", keywords:["perencanaan","keputusan","kemajuan","ambisi"] },
+  { name:"Three of Wands", arcana:"Arkana Minor", number:"3", suit:"wands", symbol:"🔥", meaning:"Kemajuan, ekspansi, pandangan jauh. Usahamu mulai membuahkan hasil.", keywords:["ekspansi","pandangan jauh","pertumbuhan","eksplorasi"] },
+  { name:"Four of Wands", arcana:"Arkana Minor", number:"4", suit:"wands", symbol:"🔥", meaning:"Perayaan, harmoni, pernikahan, rumah. Masa kegembiraan dan stabilitas.", keywords:["perayaan","stabilitas","rumah","kegembiraan"] },
+  { name:"Five of Wands", arcana:"Arkana Minor", number:"5", suit:"wands", symbol:"🔥", meaning:"Konflik, perselisihan, persaingan. Salurkan energi ini secara konstruktif.", keywords:["konflik","persaingan","ketegangan","tantangan"] },
+  { name:"Six of Wands", arcana:"Arkana Minor", number:"6", suit:"wands", symbol:"🔥", meaning:"Kemenangan, kesuksesan, penghargaan publik, kemajuan. Pengakuan layak didapat.", keywords:["kemenangan","kesuksesan","pengakuan","kepercayaan diri"] },
+  { name:"Seven of Wands", arcana:"Arkana Minor", number:"7", suit:"wands", symbol:"🔥", meaning:"Tantangan, persaingan, ketekunan. Pertahankan posisimu dengan keyakinan.", keywords:["ketekunan","tantangan","keberanian","pertahanan"] },
+  { name:"Eight of Wands", arcana:"Arkana Minor", number:"8", suit:"wands", symbol:"🔥", meaning:"Gerakan, perubahan cepat, tindakan. Peristiwa sedang berakselerasi dengan cepat.", keywords:["kecepatan","tindakan","gerakan","momentum"] },
+  { name:"Nine of Wands", arcana:"Arkana Minor", number:"9", suit:"wands", symbol:"🔥", meaning:"Ketahanan, keberanian, kegigihan. Kamu hampir sampai — jangan menyerah sekarang.", keywords:["ketahanan","kegigihan","stamina","keberanian"] },
+  { name:"Ten of Wands", arcana:"Arkana Minor", number:"10", suit:"wands", symbol:"🔥", meaning:"Beban, tanggung jawab ekstra, kerja keras. Kamu mungkin mengambil terlalu banyak.", keywords:["beban","tanggung jawab","kerja keras","kewajiban"] },
+  { name:"Ace of Cups", arcana:"Arkana Minor", number:"Ace", suit:"cups", symbol:"💧", meaning:"Cinta, perasaan baru, kebangkitan emosional. Buka hatimu untuk kemungkinan baru.", keywords:["cinta","emosi","intuisi","perasaan baru"] },
+  { name:"Two of Cups", arcana:"Arkana Minor", number:"2", suit:"cups", symbol:"💧", meaning:"Cinta yang bersatu, kemitraan, daya tarik timbal balik. Sebuah koneksi bermakna terbentuk.", keywords:["kemitraan","koneksi","daya tarik","persatuan"] },
+  { name:"Three of Cups", arcana:"Arkana Minor", number:"3", suit:"cups", symbol:"💧", meaning:"Perayaan, persahabatan, kreativitas, komunitas. Kelilingi dirimu dengan orang-orang tersayang.", keywords:["perayaan","persahabatan","komunitas","kegembiraan"] },
+  { name:"Four of Cups", arcana:"Arkana Minor", number:"4", suit:"cups", symbol:"💧", meaning:"Apati, kontemplasi, ketidakterhubungan. Jangan abaikan apa yang sedang ditawarkan.", keywords:["apati","kontemplasi","kebosanan","penilaian ulang"] },
+  { name:"Five of Cups", arcana:"Arkana Minor", number:"5", suit:"cups", symbol:"💧", meaning:"Kehilangan, kesedihan, mengasihani diri. Lihatlah apa yang tersisa, bukan hanya yang hilang.", keywords:["kehilangan","kesedihan","penyesalan","kekecewaan"] },
+  { name:"Six of Cups", arcana:"Arkana Minor", number:"6", suit:"cups", symbol:"💧", meaning:"Nostalgia, kenangan indah, reuni, kepolosan. Carilah kenyamanan dari kenangan bahagia.", keywords:["nostalgia","kenangan","masa kecil","reuni"] },
+  { name:"Seven of Cups", arcana:"Arkana Minor", number:"7", suit:"cups", symbol:"💧", meaning:"Fantasi, ilusi, berpikir angan-angan. Dasarkan impianmu pada kenyataan.", keywords:["ilusi","fantasi","pilihan","melamun"] },
+  { name:"Eight of Cups", arcana:"Arkana Minor", number:"8", suit:"cups", symbol:"💧", meaning:"Penarikan diri, pelarian, kekecewaan. Tinggalkan apa yang tidak lagi melayanimu.", keywords:["penarikan diri","transisi","pergi","pencarian"] },
+  { name:"Nine of Cups", arcana:"Arkana Minor", number:"9", suit:"cups", symbol:"💧", meaning:"Kepuasan, rasa syukur. Pemenuhan emosional sudah ada di tangan.", keywords:["kepuasan","harapan terwujud","kebahagiaan","rasa syukur"] },
+  { name:"Ten of Cups", arcana:"Arkana Minor", number:"10", suit:"cups", symbol:"💧", meaning:"Cinta ilahi, hubungan yang membahagiakan, harmoni. Keluarga dan komunitas berkembang.", keywords:["harmoni","kebahagiaan","keluarga","pemenuhan"] },
+  { name:"Ace of Swords", arcana:"Arkana Minor", number:"Ace", suit:"swords", symbol:"🌬️", meaning:"Terobosan, kejernihan, pikiran tajam. Kebenaran menembus kebingungan.", keywords:["kejernihan","terobosan","kebenaran","kecerdasan"] },
+  { name:"Two of Swords", arcana:"Arkana Minor", number:"2", suit:"swords", symbol:"🌬️", meaning:"Pilihan sulit, kebimbangan, kebuntuan. Jawabannya ada di dalam diri.", keywords:["kebimbangan","kebuntuan","pilihan","keseimbangan"] },
+  { name:"Three of Swords", arcana:"Arkana Minor", number:"3", suit:"swords", symbol:"🌬️", meaning:"Patah hati, rasa sakit emosional, kesedihan. Izinkan dirimu merasakan dan sembuh.", keywords:["patah hati","kesedihan","duka","rasa sakit"] },
+  { name:"Four of Swords", arcana:"Arkana Minor", number:"4", suit:"swords", symbol:"🌬️", meaning:"Istirahat, relaksasi, meditasi, kontemplasi. Pemulihan datang melalui ketenangan.", keywords:["istirahat","pemulihan","ketenangan","meditasi"] },
+  { name:"Five of Swords", arcana:"Arkana Minor", number:"5", suit:"swords", symbol:"🌬️", meaning:"Konflik, kekalahan, menang dengan segala cara. Pertimbangkan apa yang kamu korbankan untuk kemenangan.", keywords:["konflik","kekalahan","kehilangan","ketegangan"] },
+  { name:"Six of Swords", arcana:"Arkana Minor", number:"6", suit:"swords", symbol:"🌬️", meaning:"Transisi, perubahan, ritus peralihan. Bergerak menuju perairan yang lebih tenang.", keywords:["transisi","melanjutkan","perubahan","ketenangan"] },
+  { name:"Seven of Swords", arcana:"Arkana Minor", number:"7", suit:"swords", symbol:"🌬️", meaning:"Pengkhianatan, penipuan, lolos dari sesuatu. Percayai nalurimu.", keywords:["penipuan","strategi","kelicikan","pengkhianatan"] },
+  { name:"Eight of Swords", arcana:"Arkana Minor", number:"8", suit:"swords", symbol:"🌬️", meaning:"Pikiran negatif, pembatasan diri, penjara pikiran. Sangkar ada di pikiranmu.", keywords:["pembatasan","ketakutan","isolasi","membatasi diri"] },
+  { name:"Nine of Swords", arcana:"Arkana Minor", number:"9", suit:"swords", symbol:"🌬️", meaning:"Kecemasan, kekhawatiran, ketakutan, depresi. Malam paling gelap sebelum fajar.", keywords:["kecemasan","kekhawatiran","mimpi buruk","ketakutan"] },
+  { name:"Ten of Swords", arcana:"Arkana Minor", number:"10", suit:"swords", symbol:"🌬️", meaning:"Akhir yang menyakitkan, luka mendalam, pengkhianatan. Tapi sudah selesai — penyembuhan dimulai.", keywords:["akhir","rasa sakit","pengkhianatan","titik terendah"] },
+  { name:"Ace of Pentacles", arcana:"Arkana Minor", number:"Ace", suit:"pentacles", symbol:"🌱", meaning:"Peluang, kemakmuran, usaha baru. Kelimpahan materi mulai mengalir.", keywords:["peluang","kemakmuran","stabilitas","manifestasi"] },
+  { name:"Two of Pentacles", arcana:"Arkana Minor", number:"2", suit:"pentacles", symbol:"🌱", meaning:"Banyak prioritas, manajemen waktu, kemampuan beradaptasi. Keseimbangan adalah kuncinya.", keywords:["keseimbangan","kemampuan beradaptasi","manajemen waktu","prioritas"] },
+  { name:"Three of Pentacles", arcana:"Arkana Minor", number:"3", suit:"pentacles", symbol:"🌱", meaning:"Kerja tim, kolaborasi, belajar, implementasi. Karya besar muncul dari kerja sama.", keywords:["kerja tim","kolaborasi","keahlian","belajar"] },
+  { name:"Four of Pentacles", arcana:"Arkana Minor", number:"4", suit:"pentacles", symbol:"🌱", meaning:"Menabung, keamanan, konservatisme. Memegang terlalu erat mungkin menghambat pertumbuhan.", keywords:["keamanan","menabung","stabilitas","konservatisme"] },
+  { name:"Five of Pentacles", arcana:"Arkana Minor", number:"5", suit:"pentacles", symbol:"🌱", meaning:"Kerugian finansial, kemiskinan, pola pikir kekurangan. Carilah bantuan — kamu tidak sendirian.", keywords:["kesulitan","kehilangan","perjuangan","isolasi"] },
+  { name:"Six of Pentacles", arcana:"Arkana Minor", number:"6", suit:"pentacles", symbol:"🌱", meaning:"Memberi, menerima, berbagi kekayaan, kemurahan hati. Kelimpahan mengalir saat dibagikan.", keywords:["kemurahan hati","amal","berbagi","keseimbangan"] },
+  { name:"Seven of Pentacles", arcana:"Arkana Minor", number:"7", suit:"pentacles", symbol:"🌱", meaning:"Visi jangka panjang, hasil berkelanjutan, ketekunan. Investasimu akan terbayar.", keywords:["kesabaran","investasi","pertumbuhan","ketekunan"] },
+  { name:"Eight of Pentacles", arcana:"Arkana Minor", number:"8", suit:"pentacles", symbol:"🌱", meaning:"Magang, pengulangan, pengembangan keterampilan. Penguasaan datang melalui dedikasi.", keywords:["penguasaan","keahlian","ketekunan","kerajinan"] },
+  { name:"Nine of Pentacles", arcana:"Arkana Minor", number:"9", suit:"pentacles", symbol:"🌱", meaning:"Kelimpahan, kemewahan, kemandirian, kebebasan finansial. Nikmati apa yang telah kamu bangun.", keywords:["kelimpahan","kemewahan","kemandirian","pencapaian"] },
+  { name:"Ten of Pentacles", arcana:"Arkana Minor", number:"10", suit:"pentacles", symbol:"🌱", meaning:"Kekayaan, keamanan finansial, keluarga, kesuksesan jangka panjang. Warisan dan fondasi yang abadi.", keywords:["warisan","kekayaan","keamanan","keluarga"] },
+];
+
+const SUIT_COLORS = {
+  major:     { bg:"#EEEDFE", text:"#3C3489", wheel:"#7F77DD" },
+  wands:     { bg:"#FAEEDA", text:"#633806", wheel:"#EF9F27" },
+  cups:      { bg:"#E6F1FB", text:"#0C447C", wheel:"#378ADD" },
+  swords:    { bg:"#F1EFE8", text:"#444441", wheel:"#888780" },
+  pentacles: { bg:"#EAF3DE", text:"#27500A", wheel:"#639922" },
+};
+
+const SEGMENTS = 24;
+const SEGMENT_ANGLE = (2 * Math.PI) / SEGMENTS;
+
+let currentAngle = 0;
+let spinning = false;
+
+const canvas = document.getElementById('wheelCanvas');
+const ctx = canvas.getContext('2d');
+
+function drawWheel(angle) {
+  const cx = 280, cy = 280, r = 260;
+  ctx.clearRect(0, 0, 560, 560);
+
+  const suitCycle = ['major','wands','cups','swords','pentacles'];
+  for (let i = 0; i < SEGMENTS; i++) {
+    const suit = suitCycle[i % suitCycle.length];
+    const color = SUIT_COLORS[suit].wheel;
+    const startA = angle + i * SEGMENT_ANGLE;
+    const endA = startA + SEGMENT_ANGLE;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, startA, endA);
+    ctx.closePath();
+
+    const shade = i % 2 === 0 ? color : adjustBrightness(color, -25);
+    ctx.fillStyle = shade;
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const midA = startA + SEGMENT_ANGLE / 2;
+    const txtR = r * 0.72;
+    const tx = cx + Math.cos(midA) * txtR;
+    const ty = cy + Math.sin(midA) * txtR;
+
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.rotate(midA + Math.PI / 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '500 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const labels = ['Mayor','Tongkat','Cawan','Pedang','Koin'];
+    ctx.fillText(labels[i % 5], 0, 0);
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 36, 0, 2 * Math.PI);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = '#e0ddd8';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = '#2C2C2A';
+  ctx.font = '500 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('TAROT', cx, cy);
+}
+
+function adjustBrightness(hex, amount) {
+  const num = parseInt(hex.replace('#',''), 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amount));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + amount));
+  return `rgb(${r},${g},${b})`;
+}
+
+drawWheel(0);
+
+function playCauldronLoop(duration) {
+  try {
+    const actx = new (window.AudioContext || window.webkitAudioContext)();
+    const masterGain = actx.createGain();
+    masterGain.gain.setValueAtTime(1, actx.currentTime);
+    masterGain.gain.setValueAtTime(1, actx.currentTime + duration - 0.4);
+    masterGain.gain.linearRampToValueAtTime(0, actx.currentTime + duration);
+    masterGain.connect(actx.destination);
+
+    // Deep boiling hum — low rumble of the cauldron
+    function boilHum() {
+      [55, 80, 110].forEach(freq => {
+        const osc = actx.createOscillator();
+        const lfo = actx.createOscillator();
+        const lfoGain = actx.createGain();
+        const gain = actx.createGain();
+        lfo.frequency.value = 0.5 + Math.random() * 1.5;
+        lfoGain.gain.value = 8;
+        lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
+        osc.connect(gain); gain.connect(masterGain);
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+        gain.gain.value = 0.025;
+        lfo.start(); osc.start();
+        lfo.stop(actx.currentTime + duration);
+        osc.stop(actx.currentTime + duration);
+      });
+    }
+
+    // Continuous bubbling noise layer — filtered white noise that churns
+    function bubblingNoise() {
+      const bufLen = actx.sampleRate * duration;
+      const buf = actx.createBuffer(1, bufLen, actx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+      const src = actx.createBufferSource(); src.buffer = buf;
+      const flt = actx.createBiquadFilter();
+      flt.type = 'bandpass'; flt.frequency.value = 350; flt.Q.value = 1.5;
+      const gain = actx.createGain(); gain.gain.value = 0.08;
+      src.connect(flt); flt.connect(gain); gain.connect(masterGain);
+      src.start(); src.stop(actx.currentTime + duration);
+    }
+
+    // Swirl — a sweeping bandpass that rotates like a stirring ladle
+    function swirl() {
+      const bufLen = actx.sampleRate * duration;
+      const buf = actx.createBuffer(1, bufLen, actx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+      const src = actx.createBufferSource(); src.buffer = buf;
+      const flt = actx.createBiquadFilter();
+      flt.type = 'bandpass'; flt.Q.value = 6;
+      const gain = actx.createGain(); gain.gain.value = 0.09;
+      src.connect(flt); flt.connect(gain); gain.connect(masterGain);
+
+      // Oscillate filter freq to simulate circular stirring
+      const lfo = actx.createOscillator();
+      const lfoGain = actx.createGain();
+      lfo.frequency.value = 1.2;
+      lfoGain.gain.value = 280;
+      flt.frequency.value = 500;
+      lfo.connect(lfoGain); lfoGain.connect(flt.frequency);
+      lfo.start(); src.start();
+      lfo.stop(actx.currentTime + duration);
+      src.stop(actx.currentTime + duration);
+    }
+
+    // Individual bubble pops — random timing throughout spin
+    function scheduleBubbles() {
+      const count = Math.floor(duration / 0.28);
+      for (let i = 0; i < count; i++) {
+        const t = actx.currentTime + 0.1 + Math.random() * (duration - 0.3);
+        const freq = 120 + Math.random() * 220;
+        const dur = 0.15 + Math.random() * 0.25;
+
+        const osc = actx.createOscillator();
+        const gain = actx.createGain();
+        osc.connect(gain); gain.connect(masterGain);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 2.1, t + dur * 0.4);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.35, t + dur);
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.11, t + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        osc.start(t); osc.stop(t + dur);
+      }
+    }
+
+    // Mystical shimmer — high freq sparkles that intensify mid-spin
+    function mysticalShimmer() {
+      const count = Math.floor(duration / 0.35);
+      for (let i = 0; i < count; i++) {
+        const t = actx.currentTime + 0.3 + i * (duration / count) + Math.random() * 0.2;
+        const freq = 1400 + Math.random() * 2800;
+        const osc = actx.createOscillator();
+        const gain = actx.createGain();
+        osc.connect(gain); gain.connect(masterGain);
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.04, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.start(t); osc.stop(t + 0.18);
+      }
+    }
+
+    boilHum();
+    bubblingNoise();
+    swirl();
+    scheduleBubbles();
+    mysticalShimmer();
+
+    return actx;
+  } catch(e) { return null; }
+}
+
+function spinWheel() {
+  if (spinning) return;
+  spinning = true;
+
+  document.getElementById('spinBtn').disabled = true;
+  document.getElementById('cardReveal').classList.remove('visible');
+
+  const chosen = CARDS[Math.floor(Math.random() * CARDS.length)];
+
+  const minSpins = 5 * 2 * Math.PI;
+  const extraSpins = Math.random() * 6 * 2 * Math.PI;
+  const totalRot = minSpins + extraSpins;
+  const duration = 3500 + Math.random() * 1000;
+  const start = performance.now();
+  const startAngle = currentAngle;
+
+  playCauldronLoop(duration / 1000);
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function animate(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = easeOut(progress);
+
+    currentAngle = startAngle + totalRot * eased;
+    drawWheel(currentAngle);
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      spinning = false;
+      document.getElementById('spinBtn').disabled = false;
+      showCard(chosen);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function playMagicSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523, 659, 784, 1047, 1319, 1568];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.5, ctx.currentTime + i * 0.08 + 0.15);
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.08);
+      gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + i * 0.08 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.08 + 0.35);
+      osc.start(ctx.currentTime + i * 0.08);
+      osc.stop(ctx.currentTime + i * 0.08 + 0.35);
+    });
+    const shimmer = ctx.createOscillator();
+    const shimmerGain = ctx.createGain();
+    shimmer.connect(shimmerGain);
+    shimmerGain.connect(ctx.destination);
+    shimmer.type = 'triangle';
+    shimmer.frequency.setValueAtTime(2000, ctx.currentTime);
+    shimmer.frequency.linearRampToValueAtTime(4000, ctx.currentTime + 0.8);
+    shimmerGain.gain.setValueAtTime(0.06, ctx.currentTime);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+    shimmer.start(ctx.currentTime);
+    shimmer.stop(ctx.currentTime + 0.8);
+  } catch(e) {}
+}
+
+function closeAndSpin() {
+  document.getElementById('cardReveal').classList.remove('visible');
+  setTimeout(() => spinWheel(), 150);
+}
+
+function showCard(card) {
+  const reveal = document.getElementById('cardReveal');
+  const colors = SUIT_COLORS[card.suit];
+
+  const iconEl = document.getElementById('cardIcon');
+  iconEl.style.background = colors.bg;
+  iconEl.style.borderColor = colors.wheel + '44';
+  iconEl.textContent = card.symbol;
+
+  document.getElementById('cardName').textContent = card.name;
+
+  const typeEl = document.getElementById('cardType');
+  const typeClass = { major:'type-major', wands:'type-wands', cups:'type-cups', swords:'type-swords', pentacles:'type-pentacles' }[card.suit];
+  typeEl.className = 'card-type ' + typeClass;
+  typeEl.textContent = card.arcana;
+
+  const suitLabel = card.suit === 'major' ? '' : ` · Suit ${card.suit.charAt(0).toUpperCase() + card.suit.slice(1)}`;
+  document.getElementById('cardNumber').textContent = `Nomor ${card.number}${suitLabel}`;
+  document.getElementById('cardMeaning').textContent = card.meaning;
+
+  const kwEl = document.getElementById('cardKeywords');
+  kwEl.innerHTML = card.keywords.map(k => `<span class="keyword">${k}</span>`).join('');
+
+  document.getElementById('modalName').textContent = userName ? `Untuk ${userName}` : '';
+  document.getElementById('modalMood').textContent = userMood || '';
+  playMagicSound();
+  reveal.classList.add('visible');
+}
+</script>
+</body>
+</html>
